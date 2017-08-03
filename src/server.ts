@@ -1,29 +1,30 @@
-import * as express from 'express';
-import * as mongo from 'connect-mongo'; // (mongo session)
-import * as session from 'express-session';
-import * as dotenv from 'dotenv';
-import * as mongoose from 'mongoose';
-import * as path from 'path';
-import * as bodyParser from 'body-parser';
-import { Request, Response } from 'express';
+import * as bodyParser from "body-parser";
+import * as mongo from "connect-mongo"; // (mongo session)
+import * as dotenv from "dotenv";
+import * as express from "express";
+import * as session from "express-session";
+import * as mongoose from "mongoose";
+import * as path from "path";
+
+import { Request, Response } from "express";
 
 /**
  * Loading environment variables, such as API key and mongoDB.
  */
 dotenv.config({ path: ".env.dev" });
 
-/** 
+/**
  * Controllers
-*/
-import * as apiController from './controllers/api';
+ */
+import * as apiController from "./controllers/api";
 
 const MongoStore = mongo(session);
 
 const app = express();
 
-let mongodbURI: string = process.env.MONGODB_URI || process.env.MONGOLAB_URI || '';
+const mongodbURI: string = process.env.MONGODB_URI || process.env.MONGOLAB_URI || "";
 
-(<any>mongoose).Promise = global.Promise; //setting Mongoose.promise to native promises
+(mongoose as any).Promise = global.Promise; // setting Mongoose.promise to native promises
 
 mongoose.connect(mongodbURI, {useMongoClient: true});
 
@@ -32,30 +33,25 @@ mongoose.connection.on("error", () => {
     process.exit();
 });
 
-app.use(bodyParser.json())
+app.use(bodyParser.json());
 app.use(session({
     resave: true,
     saveUninitialized: true,
-    secret: process.env.SESSION_SECRET || '',
+    secret: process.env.SESSION_SECRET || "",
     store: new MongoStore({
-        url: process.env.MONGODB_URI || process.env.MONGOLAB_URI || '',
-        autoReconnect: true
+        autoReconnect: true,
+        url: process.env.MONGODB_URI || process.env.MONGOLAB_URI || ""
     })
 }));
 
+app.get("/api/newRoom", apiController.newRoom);
 
-app.get("/api/newRoom", apiController.newRoom)
+app.post("/api/registerPick", apiController.registerPick);
 
-app.post("/api/registerPick", apiController.registerPick)
+app.get("/api/cancelDraft", apiController.cancelDraft);
 
-app.get("/api/cancelDraft", apiController.cancelDraft)
+app.get("/", (req: Request, res: Response) =>
+    res.send({test: "hello!"}));
 
-app.get("/", function(req: Request, res: Response) {
-    console.log(req.session.id);
-    res.send({test: 'hello!'});
-});
-
-
-app.listen(3000, function() {
-    console.log("Listening on port 3000.")
-})
+app.listen(3000, () =>
+    console.log("Listening on port 3000."));

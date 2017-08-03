@@ -1,70 +1,70 @@
-import { Response, Request } from 'express'
-import { boosterJSON } from '../utils/mtgAPI'
-import { map, pick, filter } from 'lodash'
-import { roomModel } from '../models/room'
-import { Player, Room, handleReq, isAI } from '../utils/room'
-import { Card } from '../utils/booster'
-import * as R from 'ramda'
+import { Request, Response } from "express";
+import { filter, map, pick } from "lodash";
+import * as R from "ramda";
+
+import { roomModel } from "../models/room";
+
+import { Card } from "../utils/booster";
+import { boosterJSON } from "../utils/mtgAPI";
+import { handleReq, isAI, Player, Room } from "../utils/room";
 
 export let getBooster = async (setName: string): Promise<Card[]> => {
-    const genBooster: object[] = await boosterJSON(setName)
-    return await map(genBooster['cards'], (item) => <Card> pick(item, ['name', 'colors', 'cmc', 'imageUrl']))
+    const genBooster: Card[] = await boosterJSON(setName);
+    return await map(genBooster, (item) => pick(item, ["cmc", "colors", "imageUrl", "name"]) as Card);
 };
 
 export let newRoom = async (req: Request, res: Response) => {
-    var promises: Promise<Card[]>[] = []
-    for (var i: number = 0; i < 8; i++) {
-        promises.push(getBooster("hou"))
+    const promises: Array<Promise<Card[]>> = [];
+    for (let i: number = 0; i < 8; i++) {
+        promises.push(getBooster("hou"));
     }
-    var boosters: Card[][] = <Card[][]> await Promise.all(promises)
-    console.log(boosters)
-    boosters = map(boosters, (booster) => map(booster, card => { card['pick'] = false; return card}))
-    var players = map(await boosters, (boost: Card[]): Player => ({
+    let boosters: Card[][] = await Promise.all(promises) as Card[][];
+    console.log(boosters);
+    boosters = map(boosters, (booster) => map(booster, (card) => R.assoc("pick", true, card)));
+    const players = map(boosters, (boost: Card[]): Player => ({
         boostersToGo: [],
         currentBooster: boost,
+        human: false,
         picks: [],
-        human: false
-    }))
-    players[0]['human'] = true
-    var room = new roomModel({
-        players: await players,
+    }));
+    players[0].human = true;
+    const room = new roomModel({
+        boosterNum: 1,
+        players,
         session: req.session.id,
-        boosterNum: 1
-    })
-    room.save()
-    console.log(room['players'][0]['currentBooster'])
-    res.json(room['players'][0]['currentBooster'])
-}
-
+    });
+    await room.save();
+    res.json(room.players[0].currentBooster);
+};
 
 export let registerPick = async (req: Request, res: Response) => {
     try {
-        const retrievedRoom = await roomModel.findOne({'session': req.session.id});
+        const retrievedRoom = await roomModel.findOne({session: req.session.id});
         if (retrievedRoom === null) {
-            res.json({error: 'No session with that id.', session: req.session});
+            res.json({error: "No session with that id.", session: req.session});
             return;
         }
-        const transformedRoom: Room = handleReq(req.body, <Room> retrievedRoom.toObject());
+        const transformedRoom: Room = handleReq(req.body, retrievedRoom.toObject() as Room);
         try {
             await roomModel.findOneAndUpdate({_id: retrievedRoom._id}, transformedRoom);
-            console.log(R.prop('currentBooster', R.filter((player: Player): boolean => R.not(isAI(player)), R.prop('players', transformedRoom))[0]));
-            res.json(R.prop('currentBooster', R.filter((player: Player): boolean => R.not(isAI(player)), R.prop('players', transformedRoom))[0]));
-        } catch(err) {
-            res.json({error: 'Unspecified error occurred.', session: req.session});
+            console.log(R.prop("currentBooster", R.filter((player: Player): boolean =>
+                R.not(isAI(player)), R.prop("players", transformedRoom))[0]));
+            res.json(R.prop("currentBooster", R.filter((player: Player): boolean =>
+                R.not(isAI(player)), R.prop("players", transformedRoom))[0]));
+        } catch (err) {
+            res.json({error: "Unspecified error occurred.", session: req.session});
             console.log(`${req.session.id}: ${err}`);
         }
-        //res.json(transformedRoom);
-    } catch(err) {
-        res.json({error: 'Unspecified error occurred.', session: req.session});
-        console.log(`${req.session.id}: ${err}`)
+        // res.json(transformedRoom);
+    } catch (err) {
+        res.json({error: "Unspecified error occurred.", session: req.session});
+        console.log(`${req.session.id}: ${err}`);
     }
 
-
-
-}
+};
 
 export let cancelDraft = async (req: Request, res: Response) => {
     await roomModel
-        .remove({'session': req.session.id})
-    res.json({'session': req.session.id})
-}
+        .remove({session: req.session.id});
+    res.json({session: req.session.id});
+};

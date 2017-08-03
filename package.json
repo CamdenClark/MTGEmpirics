@@ -2,7 +2,7 @@
   "name": "mtgempirics",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
     "start": "npm run build:live",
     "build:live": "nodemon --exec ./node_modules/.bin/ts-node -- ./src/server.ts",
@@ -35,12 +35,13 @@
     "request": "^2.81.0",
     "request-promise-native": "^1.0.4",
     "ts-node": "^3.2.0",
-    "typescript": "^2.4.1"
+    "typescript": "^2.4.2"
   },
   "dependencies": {
     "@types/body-parser": "^1.16.4",
     "@types/ramda": "^0.24.5",
     "body-parser": "^1.17.2",
-    "ramda": "^0.24.1"
+    "ramda": "^0.24.1",
+    "tslint": "^5.5.0"
   }
 }
